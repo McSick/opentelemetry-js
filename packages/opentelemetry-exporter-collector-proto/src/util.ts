@@ -16,7 +16,6 @@
 
 import {
   collectorTypes,
-  sendWithHttp,
   CollectorExporterNodeConfigBase,
 } from '@opentelemetry/exporter-collector';
 import * as path from 'path';
@@ -42,22 +41,74 @@ export function onInit<ExportItem, ServiceRequest>(
     return `${dir}/${target}`;
   };
   if (collector.getServiceClientType() === ServiceClientType.SPANS) {
-    const proto = root.loadSync([
+    void root.load([
       'opentelemetry/proto/common/v1/common.proto',
       'opentelemetry/proto/resource/v1/resource.proto',
       'opentelemetry/proto/trace/v1/trace.proto',
       'opentelemetry/proto/collector/trace/v1/trace_service.proto',
-    ]);
-    ExportRequestProto = proto?.lookupType('ExportTraceServiceRequest');
+    ]).then(proto => {
+      ExportRequestProto = proto?.lookupType('ExportTraceServiceRequest');
+    });
+    
   } else {
-    const proto = root.loadSync([
+    void root.load([
       'opentelemetry/proto/common/v1/common.proto',
       'opentelemetry/proto/resource/v1/resource.proto',
       'opentelemetry/proto/metrics/v1/metrics.proto',
       'opentelemetry/proto/collector/metrics/v1/metrics_service.proto',
-    ]);
-    ExportRequestProto = proto?.lookupType('ExportMetricsServiceRequest');
+    ]).then(proto => {
+      ExportRequestProto = proto?.lookupType('ExportMetricsServiceRequest');
+    });
+    
   }
+}
+
+/**
+ * function to send metrics/spans using browser XMLHttpRequest
+ *     used when navigator.sendBeacon is not available
+ * @param body
+ * @param onSuccess
+ * @param onError
+ */
+ export function sendWithXhr(
+  body: string | Buffer | Int8Array,
+  url: string,
+  headers: Record<string, string>,
+  onSuccess: () => void,
+  onError: (error: collectorTypes.CollectorExporterError) => void
+) {
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', url);
+  //TODO: Abstract this out and set the protobuf header elsewhere
+  // probably  @opentelemetry/exporter-collector
+  const defaultHeaders = {
+    'Content-Type': 'application/x-protobuf'
+  };
+
+  Object.entries({
+    ...defaultHeaders,
+    ...headers,
+  }).forEach(([k, v]) => {
+    xhr.setRequestHeader(k, v);
+  });
+
+  xhr.send(body);
+
+  xhr.onreadystatechange = () => {
+    if (xhr.readyState === XMLHttpRequest.DONE) {
+      if (xhr.status >= 200 && xhr.status <= 299) {
+        //diag.debug('xhr success', body);
+        onSuccess();
+      } else {
+        const error = new collectorTypes.CollectorExporterError(
+          `Failed to export with XHR (status: ${xhr.status})`,
+          xhr.status
+        );
+
+        onError(error);
+      }
+    }
+  };
 }
 
 export function send<ExportItem, ServiceRequest>(
@@ -72,13 +123,7 @@ export function send<ExportItem, ServiceRequest>(
   if (message) {
     const body = getExportRequestProto()?.encode(message).finish();
     if (body) {
-      sendWithHttp(
-        collector,
-        Buffer.from(body),
-        'application/x-protobuf',
-        onSuccess,
-        onError
-      );
+      sendWithXhr(new Int8Array(body), collector.url, collector.headers, onSuccess, onError);
     }
   } else {
     onError(new collectorTypes.CollectorExporterError('No proto'));

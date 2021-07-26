@@ -35,8 +35,9 @@ export class CollectorTraceExporter
     collectorTypes.opentelemetryProto.collector.trace.v1.ExportTraceServiceRequest
   >
   implements SpanExporter {
-  constructor(config: CollectorExporterNodeConfigBase = {}) {
+  constructor(config: CollectorExporterNodeConfigBase = { }) {
     super(config);
+    this.headers = config.headers as Record<string, string> || {};
     this.headers = Object.assign(
       this.headers,
       baggageUtils.parseKeyPairsIntoRecord(

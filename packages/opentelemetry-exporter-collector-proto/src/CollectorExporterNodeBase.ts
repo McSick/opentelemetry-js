@@ -16,13 +16,13 @@
 
 import { diag } from '@opentelemetry/api';
 import {
-  CollectorExporterNodeBase as CollectorExporterBaseMain,
+  CollectorExporterNodeBase  as CollectorExporterBaseMain,
   collectorTypes,
   CollectorExporterNodeConfigBase,
 } from '@opentelemetry/exporter-collector';
 import { ServiceClientType } from './types';
 
-/**
+/** 
  * Collector Metric Exporter abstract base class
  */
 export abstract class CollectorExporterNodeBase<
