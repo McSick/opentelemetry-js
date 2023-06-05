@@ -567,7 +567,7 @@ describe('xhr', () => {
 
         describe(
           'AND origin does NOT match window.location but match with' +
-            ' propagateTraceHeaderCorsUrls',
+          ' propagateTraceHeaderCorsUrls',
           () => {
             beforeEach(done => {
               clearData();
@@ -600,7 +600,7 @@ describe('xhr', () => {
         );
         describe(
           'AND origin does NOT match window.location And does NOT match' +
-            ' with propagateTraceHeaderCorsUrls',
+          ' with propagateTraceHeaderCorsUrls',
           () => {
             let spyDebug: sinon.SinonSpy;
             beforeEach(done => {
@@ -655,8 +655,25 @@ describe('xhr', () => {
             assert.ok(exportSpy.notCalled, "span shouldn't be exported");
           });
         });
+        describe('when ignoreNetworkEvents is set', () => {
+          beforeEach(done => {
+            clearData();
+            prepareData(done, url, {
+              ignoreNetworkEvents: true,
+            });
+          });
 
-        describe('when clearTimingResources is set', () => {
+          it('should not add network span events', () => {
+            const span: tracing.ReadableSpan = exportSpy.args[1][0][0];
+            const events = span.events;
+            events.forEach(val => console.log(val));
+            console.log(events.length)
+            assert.strictEqual(events.length, 3, 'number of events is wrong');
+          });
+        });
+        
+
+        describe('when ignoreNetwork is set', () => {
           beforeEach(done => {
             clearData();
             const propagateTraceHeaderCorsUrls = url;
